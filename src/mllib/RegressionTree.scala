@@ -1,4 +1,4 @@
-package machinelearning
+package mllib
 
 import org.apache.spark._
 import org.apache.spark.SparkContext._

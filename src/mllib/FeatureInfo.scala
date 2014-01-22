@@ -1,4 +1,4 @@
-package machinelearning
+package mllib
 
 import collection.immutable.TreeMap
 
