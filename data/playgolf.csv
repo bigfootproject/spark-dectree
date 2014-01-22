@@ -1,0 +1,14 @@
+hot,sunny,high,false,10,0
+hot,sunny,high,true,8,0
+hot,overcast,high,false,12,1
+cool,rainy,normal,false,14.5,1
+cool,overcast,normal,true,6.24,1
+mild,sunny,high,false,8,0
+cool,sunny,normal,false,30,1
+mild,rainy,normal,false,10,1
+mild,sunny,normal,true,1,1
+mild,overcast,high,true,7,1
+hot,overcast,normal,false,9,1
+mild,rainy,high,true,10,0
+cool,rainy,normal,true,5,0
+mild,rainy,high,false,7,1

@@ -1,4 +1,5 @@
-spark-dectree
+A Decision Tree algorithm for Apache SPARK
 =============
 
-A possible implementation of a decision tree for SPARK
+This repository focus on a possible implementation of a decision tree for Apache SPARK.
+
