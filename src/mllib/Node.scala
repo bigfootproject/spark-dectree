@@ -1,4 +1,4 @@
-package mllib
+package machinelearning
 
 trait Node extends Serializable {
     def condition: Any

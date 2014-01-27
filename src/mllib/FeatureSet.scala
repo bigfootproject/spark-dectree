@@ -1,4 +1,4 @@
-package mllib
+package machinelearning
 
 import org.apache.spark._
 import org.apache.spark.SparkContext._
@@ -24,8 +24,10 @@ class FeatureSet(val metadataRDD: RDD[String]) extends Serializable {
     }
 
     def getIndex(name: String): Int = mapNameToIndex(name)
-
-    lazy val data = loadFromFile()
+    
+    var rawData = List[FeatureInfo]()
+    lazy val data = if (rawData.length == 0) { rawData =  loadFromFile(); rawData }  else rawData
+    
     lazy val numberOfFeature = data.length
 
     private def normalizeString(s: String) = {
