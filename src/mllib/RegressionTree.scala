@@ -29,10 +29,10 @@ class MyRegistrator extends KryoRegistrator {
 }
 
 /**
- * This class is representative for each value of each feature in data set
- * @index: index of feature in the whole data set, based zero
- * @xValue: value of current feature
- * @yValue: value of Y feature associated
+ * This class is representative for each value of each feature in the data set
+ * @index: index of the feature in the whole data set, based zero
+ * @xValue: value of the current feature
+ * @yValue: value of the Y feature associated (target, predicted feature)
  * @frequency : frequency of this value
  */
 class FeatureValueAggregate(val index: Int, var xValue: Any, var yValue: Double, var frequency: Int) extends Serializable {
@@ -46,8 +46,8 @@ class FeatureValueAggregate(val index: Int, var xValue: Any, var yValue: Double,
         " | yValue" + yValue + " | frequency:" + frequency + ")";
 }
 
-// index : index of feature
-// point: the split point of this feature (it can be a Set, or a Double number)
+// index : index of the feature
+// point: the split point of this feature (it can be a Set, or a Double)
 // weight: the weight we get if we apply this splitting
 class SplitPoint(val index: Int, val point: Any, val weight: Double) extends Serializable {
     override def toString = index.toString + "," + point.toString + "," + weight.toString // for debugging
@@ -58,12 +58,17 @@ class RegressionTree(context: SparkContext, metadataRDD: RDD[String]) extends Se
     def this(context : SparkContext) = this(context, context.makeRDD(List[String]()))
         
     // delimiter of fields in data set
+    // pm: this is very generic. You could instead assume your input data is always
+    // a CSV file. If it is not, then you have a pre-proccessing job to make it so
     var delimiter = context.broadcast(',')
     
     // set of feature in dataset
+    // pm: this is very generic, and indeed it depends on the input data
+    // however, in "production", you wouldn't do this, as you specialize for a particular kind of data
     var featureSet = context.broadcast(new FeatureSet(metadataRDD))
     
     // number of features
+    // pm: this is "useless" as workers can derive it, since you're broadcasting featureSet to everybody
     val number_of_features = context.broadcast(featureSet.value.data.length)
 
     val contextBroadcast = context.broadcast(context)
@@ -120,7 +125,7 @@ class RegressionTree(context: SparkContext, metadataRDD: RDD[String]) extends Se
 
         parseDouble(line(yIndex.value)) match {
             case Some(yValue) => { // check type of Y : if isn't continuous type, return nothing
-                line.map(f => {
+                line.map(f => { // this map is not parallel, it is executed by each worker on their part of the input RDD
                     i = (i + 1) % length
                     if (xIndexs.value.contains(i)) {
                         featureSet.data(i) match {
@@ -147,7 +152,7 @@ class RegressionTree(context: SparkContext, metadataRDD: RDD[String]) extends Se
      * @data: data set
      * @return: true/false and average of Y
      */
-    def checkStopCriterion(data: RDD[FeatureValueAggregate]): (Boolean, Double) = {
+    def checkStopCriterion(data: RDD[FeatureValueAggregate]): (Boolean, Double) = { //PM: since it operates on RDD it is parallel
         val yFeature = data.filter(x => x.index == yIndex.value)
 
         val yValues = yFeature.groupBy(_.yValue)
@@ -183,7 +188,8 @@ class RegressionTree(context: SparkContext, metadataRDD: RDD[String]) extends Se
         //def buildIter(rawdata: RDD[Array[FeatureAggregateInfo]]): Node = {
         def buildIter(rawdata: RDD[(Int, Array[FeatureValueAggregate])]): Node = {
 
-            var data = rawdata.flatMap(x => x._2.toSeq).cache
+            var data = rawdata.flatMap(x => x._2.toSeq).cache // PM: you project the RDD to a new RDD, which is then cached (but it's not going to work, because you should eventually cache outside the loop)
+            												  // PM: be careful here you're projecting something that you could have read directly, if you didn't use a random key before
 
             val (stopExpand, eY) = checkStopCriterion(data)
             if (stopExpand) {
@@ -192,11 +198,11 @@ class RegressionTree(context: SparkContext, metadataRDD: RDD[String]) extends Se
                 val groupFeatureByIndexAndValue = if (usePartitioner.value)
                     data.groupBy(x => (x.index, x.xValue)).partitionBy(partitioner.value)
                 else
-                    data.groupBy(x => (x.index, x.xValue))
+                    data.groupBy(x => (x.index, x.xValue)) // PM: this operates on an RDD => in parallel
 
                 var featureValueSorted = (
                     //data.groupBy(x => (x.index, x.xValue))
-                    groupFeatureByIndexAndValue
+                    groupFeatureByIndexAndValue // PM: this is an RDD hence you do the map and fold in parallel (in MapReduce this would be the "reducer")
                     .map(x => (new FeatureValueAggregate(x._1._1, x._1._2, 0, 0)
                         + x._2.foldLeft(new FeatureValueAggregate(x._1._1, x._1._2, 0, 0))(_ + _)))
                     // sample results
@@ -204,7 +210,7 @@ class RegressionTree(context: SparkContext, metadataRDD: RDD[String]) extends Se
                     //Feature(index:1 | xValue:sunny | yValue2.0 | frequency:5)
                     //Feature(index:2 | xValue:high | yValue3.0 | frequency:7)
 
-                    .groupBy(x => x.index)
+                    .groupBy(x => x.index) // This is again operating on the RDD, and actually is like the continuation of the "reducer" code above
                     .map(x =>
                         (x._1, x._2.toSeq.sortBy(
                             v => v.xValue match {
@@ -212,7 +218,7 @@ class RegressionTree(context: SparkContext, metadataRDD: RDD[String]) extends Se
                                 case s: String => v.yValue / v.frequency // sort by the average of Y if this is categorical value
                             }))))
 
-                var splittingPointFeature = featureValueSorted.map(x =>
+                var splittingPointFeature = featureValueSorted.map(x => // operates on an RDD, so this is in parallel
                     x._2(0).xValue match {
                         case s: String => // process with categorical feature
                             {
@@ -237,7 +243,7 @@ class RegressionTree(context: SparkContext, metadataRDD: RDD[String]) extends Se
                                             lastFeatureValue = f
                                             new SplitPoint(x._1, splitPoint, weight)
                                         }
-                                    }).drop(1).maxBy(_.weight) // select the best split
+                                    }).drop(1).maxBy(_.weight) // select the best split // PM: please explain this trick with an example
                                     // we drop 1 element because with Set{A,B,C} , the best split point only be {A} or {A,B}
                                 } catch {
                                     case e: UnsupportedOperationException => new SplitPoint(-1, 0.0, 0.0)
@@ -273,6 +279,7 @@ class RegressionTree(context: SparkContext, metadataRDD: RDD[String]) extends Se
                     } // end of matching xValue
                     ).
                     filter(_.index != yIndex.value).collect.maxBy(_.weight) // select best feature to split
+                    // PM: collect here means you're sending back all the data to a single machine (the driver).
 
                 if (splittingPointFeature.index == -1) { // the chosen feature has only one value
                     //val commonValueY = yFeature.reduce((x, y) => if (x._2.length > y._2.length) x else y)._1
@@ -283,6 +290,7 @@ class RegressionTree(context: SparkContext, metadataRDD: RDD[String]) extends Se
 
                     splittingPointFeature.point match {
                         case s: Set[String] => { // split on categorical feature
+                            // please check that you're caching rawdata, otherwise you're reading it back from disk
                             val left = rawdata.filter(x => s.contains(x._2(chosenFeatureInfo.value.index).xValue.asInstanceOf[String]))
                             val right = rawdata.filter(x => !s.contains(x._2(chosenFeatureInfo.value.index).xValue.asInstanceOf[String]))
                             new NonEmpty(
@@ -290,6 +298,7 @@ class RegressionTree(context: SparkContext, metadataRDD: RDD[String]) extends Se
                                 s, // left + right conditions
                                 buildIter(left), // left
                                 buildIter(right) // right
+                                // PM: this is the most important idea of Trung's algorithm. Essentially, you're "streaming" two new RDDs to a new iteration
                                 )
                         }
                         case d: Double => { // split on numerical feature
@@ -309,23 +318,30 @@ class RegressionTree(context: SparkContext, metadataRDD: RDD[String]) extends Se
 
         var fYindex = featureSet.value.data.findIndexOf(p => p.Name == yFeature)
 
+        // PM: You're sending from the "driver" to all workers the index of the Y feature, the one you're trying to predict
         if (fYindex >= 0) yIndex = contextBroadcast.value.broadcast(featureSet.value.data(fYindex).index)
-        xIndexs =
+
+        xIndexs =         // PM: why do you need to broadcast xIndexes?? Workers can compute it
             if (xFeatures.isEmpty) // if user didn't specify xFeature, we will process on all feature, include Y feature (to check stop criterion)
                 contextBroadcast.value.broadcast(featureSet.value.data.map(x => x.index).toSet[Int])
             else contextBroadcast.value.broadcast(xFeatures.map(x => featureSet.value.getIndex(x)) + yIndex.value)
 
-        println("Number observations:" + mydata.count)
-        println("Total number of features:" + number_of_features.value)
+        println("Number observations:" + mydata.count) // PM: This is done on the "driver", it's not parallel
+        println("Total number of features:" + number_of_features.value) // PM: same as before
 
-        tree = if (usePartitioner.value) {
+        tree = if (usePartitioner.value) { // PM: pay attention! the partitioner is an optimization that you don't need to use right now
             buildIter(mydata.map(x =>
                 (Random.nextInt(number_of_features.value),
                     processLine(x, number_of_features.value, featureSet.value))).partitionBy(partitioner.value))
         } else {
-            buildIter(mydata.map(x =>
+            buildIter(mydata.map(x => // PM: this map is operating on an RDD, and transforms it in another RDD, in parallel
                 (Random.nextInt(number_of_features.value),
                     processLine(x, number_of_features.value, featureSet.value))))
+
+            //PM: val new_data = mydata.map(x =>  (Random.nextInt(number_of_features.value), processLine(x, number_of_features.value, featureSet.value)))
+            //PM: the idea is always to TRANSFORM immutable RDDs into new RDDs. Please, write code that is more readable.
+            //PM: it's not clear what is your output RDD!!
+                    
         }
         //buildIter(mydata.map(processLine(_, number_of_features.value, featureTypes.value)))
         tree
