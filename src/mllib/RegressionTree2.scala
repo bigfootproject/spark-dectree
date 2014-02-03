@@ -1,4 +1,4 @@
-package machinelearning
+package mllib
 
 import org.apache.spark._
 import org.apache.spark.SparkContext._
@@ -16,44 +16,16 @@ import java.io.FileInputStream
 import com.esotericsoftware.kryo.Kryo
 import org.apache.spark.serializer.KryoRegistrator
 
-/**
- * We will use this class to improve de-serialize speed in future, but not now !!!
- */
-class MyRegistrator extends KryoRegistrator {
-    override def registerClasses(kryo: Kryo) {
-        kryo.register(classOf[RegressionTree])
-        kryo.register(classOf[FeatureValueAggregate])
-        kryo.register(classOf[SplitPoint])
-        kryo.register(classOf[FeatureSet])
+class Condition(val splitPoint : SplitPoint, val positive: Boolean = true) extends Serializable{
+    def check(value : Any) ={
+        splitPoint.point match {
+            case s: Set[String] => if (positive) s.contains(value.asInstanceOf[String]) else !s.contains(value.asInstanceOf[String])
+            case d: Double => if (positive) (value.asInstanceOf[Double] < d) else !(value.asInstanceOf[Double] < d)
+        }
     }
 }
 
-/**
- * This class is representative for each value of each feature in the data set
- * @index: index of the feature in the whole data set, based zero
- * @xValue: value of the current feature
- * @yValue: value of the Y feature associated (target, predicted feature)
- * @frequency : frequency of this value
- */
-class FeatureValueAggregate(val index: Int, var xValue: Any, var yValue: Double, var frequency: Int) extends Serializable {
-    def addFrequency(acc: Int): FeatureValueAggregate = { FeatureValueAggregate.this.frequency = FeatureValueAggregate.this.frequency + acc; FeatureValueAggregate.this }
-    def +(that: FeatureValueAggregate) = {
-        FeatureValueAggregate.this.frequency = FeatureValueAggregate.this.frequency + that.frequency
-        FeatureValueAggregate.this.yValue = FeatureValueAggregate.this.yValue + that.yValue
-        FeatureValueAggregate.this
-    }
-    override def toString() = "Feature(index:" + index + " | xValue:" + xValue +
-        " | yValue" + yValue + " | frequency:" + frequency + ")";
-}
-
-// index : index of the feature
-// point: the split point of this feature (it can be a Set, or a Double)
-// weight: the weight we get if we apply this splitting
-class SplitPoint(val index: Int, val point: Any, val weight: Double) extends Serializable {
-    override def toString = index.toString + "," + point.toString + "," + weight.toString // for debugging
-}
-
-class RegressionTree(metadataRDD: RDD[String]) extends Serializable {
+class RegressionTree2(metadataRDD: RDD[String]) extends Serializable {
       
     // delimiter of fields in data set
     // pm: this is very generic. You could instead assume your input data is always
@@ -93,7 +65,7 @@ class RegressionTree(metadataRDD: RDD[String]) extends Serializable {
      * It's mean if a node have the number of records <= minsplit, it can't be splitted anymore
      * @xMinSplit: new minimum records for splitting
      */
-    def setMinSplit(xMinSlit: Int) = { this.minsplit = xMinSlit }
+    def setMinSplit(xMinSlit: Int) = { minsplit = xMinSlit }
 
     /**
      * Set threshold for stopping criterion. This threshold is coefficient of variation
@@ -148,34 +120,26 @@ class RegressionTree(metadataRDD: RDD[String]) extends Serializable {
      * @data: data set
      * @return: true/false and average of Y
      */
-    def checkStopCriterion(data: RDD[FeatureValueAggregate]): (Boolean, Double, Int) = { //PM: since it operates on RDD it is parallel
+    def checkStopCriterion(data: RDD[FeatureValueAggregate]): (Boolean, Double) = { //PM: since it operates on RDD it is parallel
         val yFeature = data.filter(x => x.index == yIndex)
 
-        //yFeature.collect.foreach(println)
-        
-        val numTotalRecs = yFeature.reduce(_ + _).frequency
-        
-        
         val yValues = yFeature.groupBy(_.yValue)
 
         val yAggregate = yFeature.map(x => (x.yValue, x.yValue * x.yValue))
 
         val ySumValue = yAggregate.reduce((x, y) => (x._1 + y._1, x._2 + y._2))
-        
-        
-        
+        val numTotalRecs = yFeature.reduce(_ + _).frequency
         val EY = ySumValue._1 / numTotalRecs
         val EY2 = ySumValue._2 / numTotalRecs
 
         val standardDeviation = math.sqrt(EY2 - EY * EY)
 
-        (       (   // the first component of tuple
-                (numTotalRecs <= this.minsplit) // or the number of records is less than minimum
-                || (((standardDeviation < this.threshold) && (EY == 0)) || (standardDeviation / EY < threshold)) // or standard devariance of values of Y feature is small enough
+        (
+            (
+                (numTotalRecs <= minsplit) // or the number of records is less than minimum
+                || (((standardDeviation < threshold) && (EY == 0)) || (standardDeviation / EY < threshold)) // or standard devariance of values of Y feature is small enough
                 ),
-                EY  // the second component of tuple
-                , numTotalRecs
-        )
+                EY)
 
     }
 
@@ -185,20 +149,41 @@ class RegressionTree(metadataRDD: RDD[String]) extends Serializable {
      * @xFeature: input features
      * @return: root of tree
      */
-    def buildTree(trainedData: RDD[String], yFeature: String = featureSet.data(yIndex).Name, xFeatures: Set[String] = Set[String]()): Node = {
+        def buildTree(trainedData: RDD[String], yFeature: String = featureSet.data(yIndex).Name, xFeatures: Set[String] = Set[String]()): Node = {
         // parse raw data
-        val mydata = trainedData.map(line => line.split(delimiter))
+    	val mydata = trainedData.map(line => line.split(delimiter))
     
-        //def buildIter(rawdata: RDD[Array[FeatureAggregateInfo]]): Node = {
-        def buildIter(rawdata: RDD[Array[FeatureValueAggregate]]): Node = {
+        var fYindex = featureSet.data.findIndexOf(p => p.Name == yFeature)
 
-            var data = rawdata.flatMap(x => x.toSeq)
+        // PM: You're sending from the "driver" to all workers the index of the Y feature, the one you're trying to predict
+        if (fYindex >= 0) yIndex = featureSet.data(fYindex).index
+
+        xIndexs =         // PM: why do you need to broadcast xIndexes?? Workers can compute it
+            if (xFeatures.isEmpty) // if user didn't specify xFeature, we will process on all feature, include Y feature (to check stop criterion)
+                featureSet.data.map(x => x.index).toSet[Int]
+            else xFeatures.map(x => featureSet.getIndex(x)) + yIndex
+
+        println("Number observations:" + mydata.count) // PM: This is done on the "driver", it's not parallel
+        println("Total number of features:" + number_of_features) // PM: same as before
+
+        val new_data = mydata.map(x =>  processLine(x, number_of_features, featureSet)).cache
+        
+        
+        // build tree
+        def buildIter(conditions : List[Condition]): Node = {
             
-            val (stopExpand, eY, numRecs) = checkStopCriterion(data)
+                var data = new_data.filter(
+                        x => conditions.forall(
+                                sp => {
+                                    sp.check(x(sp.splitPoint.index).xValue)
+                                }
+                )).flatMap(x => x.toSeq)
+            //var data = rawdata.flatMap(x => x.toSeq)
+            
+            val (stopExpand, eY) = checkStopCriterion(data)
             if (stopExpand) {
                 new Empty(eY.toString)
             } else {
-                println ("Number of recs:" + numRecs)
                 val groupFeatureByIndexAndValue = 
                     data.groupBy(x => (x.index, x.xValue)) // PM: this operates on an RDD => in parallel
 
@@ -291,54 +276,24 @@ class RegressionTree(metadataRDD: RDD[String]) extends Serializable {
                 } else {
                     val chosenFeatureInfo = featureSet.data.filter(f => f.index == splittingPointFeature.index).first
 
-                    splittingPointFeature.point match {
-                        case s: Set[String] => { // split on categorical feature
-                            // please check that you're caching rawdata, otherwise you're reading it back from disk
-                            val left = rawdata.filter(x => s.contains(x(chosenFeatureInfo.index).xValue.asInstanceOf[String]))
-                            val right = rawdata.filter(x => !s.contains(x(chosenFeatureInfo.index).xValue.asInstanceOf[String]))
-                            new NonEmpty(
-                                chosenFeatureInfo, // featureInfo
-                                s, // left + right conditions
-                                buildIter(left), // left
-                                buildIter(right) // right
-                                // PM: this is the most important idea of Trung's algorithm. Essentially, you're "streaming" two new RDDs to a new iteration
-                                )
-                        }
-                        case d: Double => { // split on numerical feature
-                            val left = rawdata.filter(x => (x(chosenFeatureInfo.index).xValue.asInstanceOf[Double] < d))
-                            val right = rawdata.filter(x => (x(chosenFeatureInfo.index).xValue.asInstanceOf[Double] >= d))
-                            new NonEmpty(
-                                chosenFeatureInfo, // featureInfo
-                                d, // left + right conditions
-                                buildIter(left), // left
-                                buildIter(right) // right
-                                )
-                        }
-                    } // end of matching
+                    val leftCondition = conditions :+ new Condition(splittingPointFeature, true)
+                    val rightCondition = conditions :+ new Condition(splittingPointFeature, false)
+                    new NonEmpty(
+                            chosenFeatureInfo,
+                            splittingPointFeature.point,
+                            buildIter(leftCondition),
+                            buildIter(rightCondition)
+                            )
                 } // end of if index == -1
             }
         }
 
-        var fYindex = featureSet.data.findIndexOf(p => p.Name == yFeature)
-
-        // PM: You're sending from the "driver" to all workers the index of the Y feature, the one you're trying to predict
-        if (fYindex >= 0) yIndex = featureSet.data(fYindex).index
-
-        xIndexs =         // PM: why do you need to broadcast xIndexes?? Workers can compute it
-            if (xFeatures.isEmpty) // if user didn't specify xFeature, we will process on all feature, include Y feature (to check stop criterion)
-                featureSet.data.map(x => x.index).toSet[Int]
-            else xFeatures.map(x => featureSet.getIndex(x)) + yIndex
-
-        println("Number observations:" + mydata.count) // PM: This is done on the "driver", it's not parallel
-        println("Total number of features:" + number_of_features) // PM: same as before
-
-        val new_data = mydata.map(x =>  processLine(x, number_of_features, featureSet))
-        // problem with cache --> change RDD
-        
-        tree = buildIter(new_data)
+        tree = buildIter(List[Condition]())
                     
         tree
+
     }
+    
 
     /**
      * Parse a string to double
@@ -391,8 +346,7 @@ class RegressionTree(metadataRDD: RDD[String]) extends Serializable {
             "Please build tree first"
         }
     }
-    
-    def writeTreeToFile(path: String) = {
+   def writeTreeToFile(path: String) = {
         
         val js = new JavaSerializer(null, null)
         val os = new DataOutputStream(new FileOutputStream(path))
@@ -405,14 +359,13 @@ class RegressionTree(metadataRDD: RDD[String]) extends Serializable {
     }
 }
 
-object RegressionTree extends Serializable {
+object RegressionTree2 extends Serializable {
     
     def apply(metadataRDD: RDD[String]) = 
-        new RegressionTree(metadataRDD)
-    def loadTreeFromFile(path: String) = {
-        val js = new JavaSerializer(null, null)
-        val is = new DataInputStream(new FileInputStream(path))
-        val rt = js.readObject(is).asInstanceOf[RegressionTree]
-        rt
-    }
+        new RegressionTree2(metadataRDD)
+    /*
+    def apply( context: SparkContext) = 
+        new RegressionTree(context, context.makeRDD(List[String]()))
+        * 
+        */
 }

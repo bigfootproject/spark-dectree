@@ -5,9 +5,11 @@ import org.apache.spark.SparkContext._
 import org.apache.spark.rdd._
 
 // This class will load Feature Set from a file
-class FeatureSet(val metadataRDD: RDD[String]) extends Serializable {
+class FeatureSet(metadataRDD: RDD[String]) extends Serializable {
 
-    private var mapNameToIndex: Map[String, Int] = Map[String, Int]() withDefaultValue -1
+    private var mapNameToIndex: Map[String, Int] = Map[String, Int]() //withDefaultValue -1
+    // we can not use withDefaulValue here. It will raise a NotSerializableExecptiopn
+    // because of a bug in scala 2.9x. This bug is solved in 2.10
 
     private def loadFromFile() = {
 
@@ -23,10 +25,10 @@ class FeatureSet(val metadataRDD: RDD[String]) extends Serializable {
         data
     }
 
-    def getIndex(name: String): Int = mapNameToIndex(name)
+    def getIndex(name: String): Int = try { mapNameToIndex(name)}  catch { case _ => -1 }
     
     var rawData = List[FeatureInfo]()
-    lazy val data = if (rawData.length == 0) { rawData =  loadFromFile(); rawData }  else rawData
+    val data = loadFromFile()
     
     lazy val numberOfFeature = data.length
 
