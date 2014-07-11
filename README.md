@@ -1,4 +1,4 @@
-A Decision Tree algorithm for Apache SPARK
+Classification and Regression Tree algorithms for Apache SPARK
 =============
 
 This repository focus on a possible implementation of a decision tree for Apache SPARK.
