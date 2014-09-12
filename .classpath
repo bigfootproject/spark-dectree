@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<classpath>
+	<classpathentry excluding="treelib/core/" kind="src" path="spark/mllib/src/main/scala/org/apache/spark/mllib"/>
+	<classpathentry kind="src" path="spark/mllib/src/main/scala/org/apache/spark/mllib/treelib/core"/>
+	<classpathentry kind="src" path="spark/mllib/src/test/scala/org/apache/spark/mllib/treelib"/>
+	<classpathentry kind="con" path="org.scala-ide.sdt.launching.SCALA_CONTAINER"/>
+	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
+	<classpathentry kind="lib" path="/home/trung/research/github/originSpark/assembly/target/scala-2.10/spark-assembly-1.2.0-SNAPSHOT-hadoop1.0.4.jar"/>
+	<classpathentry kind="output" path="bin"/>
+</classpath>
