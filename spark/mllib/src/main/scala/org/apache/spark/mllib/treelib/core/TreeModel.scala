@@ -1,10 +1,9 @@
-package treelib.core
+package org.apache.spark.mllib.treelib.core
 
 import org.apache.spark._
 import org.apache.spark.SparkContext._
 import org.apache.spark.rdd._
 import java.io._
-import scala.actors.remote.JavaSerializer
 import java.io.DataOutputStream
 import java.io.FileOutputStream
 
@@ -86,11 +85,8 @@ abstract class TreeModel extends Serializable {
      * @param path where we want to write to
      */
     def writeToFile(path: String) = {
-
-        val js = new JavaSerializer(null, null)
-        val os = new DataOutputStream(new FileOutputStream(path))
-
-        js.writeObject(os, this)
-        os.close
+        val oos = new ObjectOutputStream(new FileOutputStream(path))
+        oos.writeObject(this)
+        oos.close
     }
 }

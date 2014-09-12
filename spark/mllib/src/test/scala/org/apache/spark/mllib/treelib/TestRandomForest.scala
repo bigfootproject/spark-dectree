@@ -1,18 +1,17 @@
+package org.apache.spark.mllib.treelib.test
 
 import org.apache.spark._
 import org.apache.spark.SparkContext._
 import org.apache.spark.rdd._
-import treelib._
-import treelib.core._
-import treelib.evaluation.Evaluation
-import treelib.id3.ID3TreeBuilder
+import org.apache.spark.mllib.treelib._
+import org.apache.spark.mllib.treelib.core._
+import org.apache.spark.mllib.treelib.evaluation.Evaluation
+import org.apache.spark.mllib.treelib.id3.ID3TreeBuilder
 
 object TestRandomForest {
 	def main(args : Array[String]) : Unit = {
 	    val IS_LOCAL = true
 
-        //System.setProperty("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
-        //System.setProperty("spark.kryo.registrator", "MyRegistrator")
 
         val inputTrainingFile = (
             if (IS_LOCAL)
@@ -49,8 +48,7 @@ object TestRandomForest {
         val pathOfTheeFullTree = "/tmp/full-tree.model"
             
         var randomForest = new RandomForestBuilder()
-	    randomForest.setData(trainingData)
-	    //randomForest.setFeatureName(fNames)
+	randomForest.setData(trainingData)
         randomForest.setNumberOfTree(30)
         val forest = randomForest.buildForest[ID3TreeBuilder]()
         
@@ -58,7 +56,7 @@ object TestRandomForest {
         
         println("Evaluation:")
         val predictRDDOfTheFullTree = forest.predict(testingData)
-        val actualValueRDD = testingData.map(line => line.split(',').last) // 2 is the index of DEXfat in csv file, based 0
+        val actualValueRDD = testingData.map(line => line.split(',').last)
         //println("Original tree(full tree):\n%s".format(treeFromFile.treeModel))
 
         println("Evaluation of the forest:")

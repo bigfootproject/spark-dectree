@@ -1,10 +1,10 @@
-package treelib.cart
+package org.apache.spark.mllib.treelib.cart
 
 import org.apache.spark._
 import org.apache.spark.SparkContext._
 import org.apache.spark.rdd._
 import java.io._
-import treelib.core._
+import org.apache.spark.mllib.treelib.core._
 import scala.math.BigInt.int2bigInt
 
 /***

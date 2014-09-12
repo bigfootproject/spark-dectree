@@ -1,4 +1,4 @@
-package treelib.core
+package org.apache.spark.mllib.treelib.core
 
 /**
  * This class is representative for each value of each feature in the data set

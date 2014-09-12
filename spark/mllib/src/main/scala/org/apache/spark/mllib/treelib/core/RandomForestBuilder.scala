@@ -1,4 +1,4 @@
-package treelib.core
+package org.apache.spark.mllib.treelib.core
 
 
 import org.apache.spark._
@@ -6,12 +6,11 @@ import org.apache.spark.SparkContext._
 import org.apache.spark.rdd._
 import scala.collection.immutable.HashMap
 import java.io._
-import scala.actors.remote.JavaSerializer
 import java.io.DataOutputStream
 import java.io.FileOutputStream
 import java.io.DataInputStream
 import java.io.FileInputStream
-import treelib.cart._
+import org.apache.spark.mllib.treelib.cart._
 import scala.concurrent._
 import scala.collection.immutable.Queue
 
@@ -107,7 +106,7 @@ class RandomForest (var numberOfTrees : Int) extends Serializable {
      * @param path the location of file which contains tree model
      */
     def loadModelFromFile(path: String) = {
-        val js = new JavaSerializer(null, null)
+        //val js = new JavaSerializer(null, null)
 
         val ois = new ObjectInputStream(new FileInputStream(path)) {
             override def resolveClass(desc: java.io.ObjectStreamClass): Class[_] = {

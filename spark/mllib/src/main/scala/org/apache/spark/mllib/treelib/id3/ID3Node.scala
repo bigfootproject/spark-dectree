@@ -1,6 +1,6 @@
-package treelib.id3
+package org.apache.spark.mllib.treelib.id3
 
-import treelib.core._
+import org.apache.spark.mllib.treelib.core._
 
 
 

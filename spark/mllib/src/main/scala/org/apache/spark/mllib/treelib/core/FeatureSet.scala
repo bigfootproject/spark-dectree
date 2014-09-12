@@ -1,4 +1,4 @@
-package treelib.core
+package org.apache.spark.mllib.treelib.core
 
 import org.apache.spark._
 import org.apache.spark.SparkContext._

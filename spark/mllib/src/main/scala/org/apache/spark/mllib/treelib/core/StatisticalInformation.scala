@@ -1,4 +1,4 @@
-package treelib.core
+package org.apache.spark.mllib.treelib.core
 
 class StatisticalInformation(
     

@@ -1,6 +1,6 @@
-package treelib.cart
+package org.apache.spark.mllib.treelib.cart
 
-import treelib.core._
+import org.apache.spark.mllib.treelib.core._
 
 
 

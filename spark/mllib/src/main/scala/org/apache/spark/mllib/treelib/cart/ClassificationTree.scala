@@ -1,4 +1,4 @@
-package treelib.cart
+package org.apache.spark.mllib.treelib.cart
 
 
 import org.apache.spark._
@@ -7,7 +7,7 @@ import org.apache.spark.rdd._
 import scala.collection.mutable.HashMap
 import java.io._
 import scala.util.Random
-import treelib.core._
+import org.apache.spark.mllib.treelib.core._
 
 import scala.Array.canBuildFrom
 import scala.math.BigInt.int2bigInt
@@ -303,9 +303,9 @@ class ClassificationTree extends TreeBuilder{
     }
     
     
-    private def findBestSplitPointNumericalFeature(label : BigInt, index : Int, seqXValue_YValue_Frequency : Seq[(Any, Seq[(Any,Int)])])
+    private def findBestSplitPointNumericalFeature(label : BigInt, index : Int, seqXValue_YValue_Frequency : Iterable[(Any, Iterable[(Any,Int)])])
     : (SplitPoint, StatisticalInformation) = {
-        var newSeqXValue_YValue_Frequency = seqXValue_YValue_Frequency.sortBy(x => x._1.asInstanceOf[Double])// sort by xValue
+        var newSeqXValue_YValue_Frequency = seqXValue_YValue_Frequency.toList.sortBy(x => x._1.asInstanceOf[Double])// sort by xValue
         var mapYValueToFrequency = (seqXValue_YValue_Frequency.flatMap (x => x._2).groupBy(_._1)
         .map { case (group, traversable) => traversable.reduce{(a,b) => (a._1, a._2 + b._2)} }        
         )
@@ -384,7 +384,7 @@ class ClassificationTree extends TreeBuilder{
         //.reduce((x,y) => (x._1, x._2 + y._2))
     }
     
-    private def findBestSplitPointCategoricalFeature(label : BigInt, index : Int, seqXValue_YValue_Frequency : Seq[(Any, Seq[(Any,Int)])])
+    private def findBestSplitPointCategoricalFeature(label : BigInt, index : Int, seqXValue_YValue_Frequency : Iterable[(Any, Iterable[(Any,Int)])])
     : (SplitPoint, StatisticalInformation) = {
         var newSeqXValue_YValue_Frequency = seqXValue_YValue_Frequency//.sortBy(x => x._1.asInstanceOf[Double])// sort by xValue
         var mapYValueToFrequency = (seqXValue_YValue_Frequency.flatMap (x => x._2).groupBy(_._1)
@@ -433,7 +433,7 @@ class ClassificationTree extends TreeBuilder{
         
         
         
-        def generatePossibleSplitpoint(values: Seq[(Any, Array[Int])]) = {
+        def generatePossibleSplitpoint(values: List[(Any, Array[Int])]) = {
                     def generateIter(currentIndex: Int, currentSet: Set[Any],
                         currentFrequenciesLeft: Array[Int]): Unit = {
 
@@ -482,8 +482,8 @@ class ClassificationTree extends TreeBuilder{
                     generateIter(0, Set[Any](), Array.fill[Int](numberOfYValue)(0))
                 }
                 
-        println("Find split point of a feature have " + xValueAndArrayOfYFrequency.length + " xvalues")
-                generatePossibleSplitpoint(xValueAndArrayOfYFrequency)
+        //println("Find split point of a feature have " + xValueAndArrayOfYFrequency.length + " xvalues")
+                generatePossibleSplitpoint(xValueAndArrayOfYFrequency.toList)
             
                 (new SplitPoint(index, splitPoint, minGain), new StatisticalInformation( statisticalInfo, 0, sumOfFrequency))
         
@@ -829,12 +829,13 @@ class ClassificationTree extends TreeBuilder{
     */
     
     
-    private def generateRandomSet(sequenceOfFIndices: Seq[Int]) : Array[Int] = {
-        val numFeatures = sequenceOfFIndices.length
+    private def generateRandomSet(sequenceOfFIndices: Iterable[Int]) : Array[Int] = {
+        var arrayOfIndices = sequenceOfFIndices.toArray
+        val numFeatures = arrayOfIndices.length
         val numRandomFeatureSelection = (math.sqrt(numFeatures) + 0.5).toInt
 
         var selectedFeature = Array.fill(numRandomFeatureSelection)(0)
-        var arrayOfIndices = sequenceOfFIndices.toArray
+        
         
         for (i <- 0 until numRandomFeatureSelection) {
             val j = Random.nextInt(numFeatures - i) + i

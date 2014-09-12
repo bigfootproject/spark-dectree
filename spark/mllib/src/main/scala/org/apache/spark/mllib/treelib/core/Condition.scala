@@ -1,4 +1,4 @@
-package treelib.core
+package org.apache.spark.mllib.treelib.core
 
 /**
  * This class is representative for the condition, eg. age < 12

@@ -1,8 +1,8 @@
-package treelib.id3
+package org.apache.spark.mllib.treelib.id3
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.SparkContext._
-import treelib.core._
+import org.apache.spark.mllib.treelib.core._
 import scala.Array.canBuildFrom
 import scala.math.BigInt.int2bigInt
 import scala.collection.mutable.HashMap
@@ -156,7 +156,7 @@ class ID3TreeBuilder
 
                     val randomSelectedFeatureAtEachNode = temp.flatMap {
                         case (label, sequenceOfFIndices) => {
-                            generateRandomSet(sequenceOfFIndices.distinct).map(x => (label, x))
+                            generateRandomSet(sequenceOfFIndices.toList.distinct).map(x => (label, x))
                         }
                     }.collect.toSet
 
@@ -242,7 +242,7 @@ class ID3TreeBuilder
             }.groupByKey.map {
                 case (nodeID, seqOfYValue_freq) => {
                     var numInstances = seqOfYValue_freq.foldLeft(0)((x, y) => x + y._2)
-                    (nodeID, new StatisticalInformation(seqOfYValue_freq.sortBy(x => -x._2).take(3).toArray, 0, numInstances))
+                    (nodeID, new StatisticalInformation(seqOfYValue_freq.toList.sortBy(x => -x._2).take(3).toArray, 0, numInstances))
                 }
             }.collectAsMap
 
@@ -296,8 +296,8 @@ class ID3TreeBuilder
 
     }
 
-    private def findBestSplitPointOfNumericalFeature(seqXValue_YValue_Frequency: Seq[(Any, Seq[(Any, Int)])]): (Double, Double) = {
-        var newSeqXValue_YValue_Frequency = seqXValue_YValue_Frequency.sortBy(x => x._1.asInstanceOf[Double]) // sort by xValue
+    private def findBestSplitPointOfNumericalFeature(seqXValue_YValue_Frequency: Iterable[(Any, Iterable[(Any, Int)])]): (Double, Double) = {
+        var newSeqXValue_YValue_Frequency = seqXValue_YValue_Frequency.toList.sortBy(x => x._1.asInstanceOf[Double]) // sort by xValue
         var mapYValueToFrequency = (seqXValue_YValue_Frequency.flatMap(x => x._2).groupBy(_._1)
             .map { case (group, traversable) => traversable.reduce { (a, b) => (a._1, a._2 + b._2) } })
         val mapYValueToIndex = mapYValueToFrequency.keys.zipWithIndex.map(x => (x._1 -> x._2)).toMap

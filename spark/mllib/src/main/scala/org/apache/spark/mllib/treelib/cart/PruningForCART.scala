@@ -1,10 +1,10 @@
-package treelib.cart
+package org.apache.spark.mllib.treelib.cart
 
-import treelib.core._
-import treelib.cart._
+import org.apache.spark.mllib.treelib.core._
+import org.apache.spark.mllib.treelib.cart._
 import org.apache.spark.rdd.RDD
 import org.apache.spark.SparkContext._
-import treelib.utils.AbstractPruning
+import org.apache.spark.mllib.treelib.utils.AbstractPruning
 
 object PruningForCART {
     implicit class CARTPruning(treeModel: CARTTreeModel) extends AbstractPruning(treeModel) {

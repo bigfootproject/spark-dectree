@@ -1,11 +1,11 @@
-package treelib.cart
+package org.apache.spark.mllib.treelib.cart
 
 import org.apache.spark._
 import org.apache.spark.SparkContext._
 import org.apache.spark.rdd._
 import scala.concurrent._
 import java.io._
-import treelib.core._
+import org.apache.spark.mllib.treelib.core._
 import scala.Array.canBuildFrom
 import scala.math.BigInt.int2bigInt
 
@@ -284,7 +284,7 @@ class RegressionTree() extends TreeBuilder {
                     .groupByKey()
                     .map { 
                         case ((label, index), arrayOf_xValue_yValue_yPower2_fre) =>
-                        ((label, index), arrayOf_xValue_yValue_yPower2_fre.sortBy{
+                        ((label, index), arrayOf_xValue_yValue_yPower2_fre.toList.sortBy{
                             case (xValue, yValue, yValuePower2, frequency) => xValue match {
                                 case d: Double => d // sort by xValue if this is numerical feature
                                 case s: String => yValue / frequency // sort by the average of Y if this is categorical value

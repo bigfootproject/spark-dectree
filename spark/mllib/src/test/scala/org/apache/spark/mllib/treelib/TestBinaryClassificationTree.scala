@@ -1,19 +1,18 @@
+package org.apache.spark.mllib.treelib.test
+
 import org.apache.spark._
 import org.apache.spark.SparkContext._
 import org.apache.spark.rdd._
-import treelib._
-import treelib.core._
-import treelib.evaluation.Evaluation
-import treelib.cart.RegressionTree
-import treelib.cart.ClassificationTree
-import treelib.utils._
+import org.apache.spark.mllib.treelib._
+import org.apache.spark.mllib.treelib.core._
+import org.apache.spark.mllib.treelib.evaluation.Evaluation
+import org.apache.spark.mllib.treelib.cart.RegressionTree
+import org.apache.spark.mllib.treelib.cart.ClassificationTree
+import org.apache.spark.mllib.treelib.utils._
 
 object TestBinaryClassificationTree {
 	def main(args : Array[String]) : Unit = {
 	    val IS_LOCAL = true
-
-        //System.setProperty("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
-        //System.setProperty("spark.kryo.registrator", "MyRegistrator")
 
         val inputTrainingFile = (
             if (IS_LOCAL)
@@ -49,13 +48,10 @@ object TestBinaryClassificationTree {
         val pathOfTreeModel = "/tmp/tree.model"
         val pathOfTheeFullTree = "/tmp/full-tree.model"
             
-        //val tree = new ClassificationTree()
-	    //tree.setDataset(trainingData, true)
         val tree = new ClassificationTree()
 	    tree.setDataset(trainingData)
 	    tree.setMinSplit(1)
-	    //tree.setFeatureNames(Array[String]("Temperature","Outlook","Humidity","Windy","PlayGolf"))
-	    //println("Tree:\n" + tree.buildTree("PlayGolf", Set()))
+	    //println("Tree:\n" + tree.buildTree("PlayGolf", Set("Temperature", "Outlook")))
 	    println("Tree:\n" + tree.buildTree())
 	    
 	    /* TEST WRITING TREE TO MODEL */
@@ -79,7 +75,7 @@ object TestBinaryClassificationTree {
         println("Evaluation:")
         val predictRDDOfTheFullTree = treeFromFile.predict(testingData)
         val predictRDDOfThePrunedTree = tree.predict(testingData)
-        val actualValueRDD = testingData.map(line => line.split(',').last) // 2 is the index of DEXfat in csv file, based 0
+        val actualValueRDD = testingData.map(line => line.split(',').last)
         //println("Original tree(full tree):\n%s".format(treeFromFile.treeModel))
 
         println("Original Tree:\n%s".format(treeFromFile.treeModel))

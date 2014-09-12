@@ -1,7 +1,7 @@
-package treelib.evaluation
+package org.apache.spark.mllib.treelib.evaluation
 
 import org.apache.spark.rdd.RDD
-import treelib.core._
+import org.apache.spark.mllib.treelib.core._
 
 /**
  * This class use standard deviation and square error to determine the accuracy of a prediction

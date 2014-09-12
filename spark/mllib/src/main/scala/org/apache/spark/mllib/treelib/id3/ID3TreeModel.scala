@@ -1,11 +1,11 @@
-package treelib.id3
+package org.apache.spark.mllib.treelib.id3
 
 import org.apache.spark._
 import org.apache.spark.SparkContext._
 import org.apache.spark.rdd._
 import java.io._
-import treelib.cart.CARTNode
-import treelib.core._
+import org.apache.spark.mllib.treelib.cart.CARTNode
+import org.apache.spark.mllib.treelib.core._
 import scala.math.BigInt.int2bigInt
 
 /**

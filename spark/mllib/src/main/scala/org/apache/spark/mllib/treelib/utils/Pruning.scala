@@ -1,13 +1,13 @@
-package treelib.utils
+package org.apache.spark.mllib.treelib.utils
 import org.apache.spark.rdd.RDD
 import org.apache.spark.SparkContext._
-import treelib.core._
-import treelib.evaluation.Evaluation
-import treelib.cart.CARTNode
-import treelib.cart.RegressionTree
-import treelib.cart.ClassificationTree
-import treelib.id3.ID3Node
-import treelib.id3.ID3TreeBuilder
+import org.apache.spark.mllib.treelib.core._
+import org.apache.spark.mllib.treelib.evaluation.Evaluation
+import org.apache.spark.mllib.treelib.cart.CARTNode
+import org.apache.spark.mllib.treelib.cart.RegressionTree
+import org.apache.spark.mllib.treelib.cart.ClassificationTree
+import org.apache.spark.mllib.treelib.id3.ID3Node
+import org.apache.spark.mllib.treelib.id3.ID3TreeBuilder
 
 /*
 object Pruning {
@@ -984,10 +984,10 @@ abstract class AbstractPruning(treeModel : TreeModel) extends Serializable {
     
 }
 
-    import treelib.id3._
-    import treelib.cart._
-    import treelib.id3.PruningForID3._
-    import treelib.cart.PruningForCART._
+    import org.apache.spark.mllib.treelib.id3._
+    import org.apache.spark.mllib.treelib.cart._
+    import org.apache.spark.mllib.treelib.id3.PruningForID3._
+    import org.apache.spark.mllib.treelib.cart.PruningForCART._
     
 object Pruning {
 
